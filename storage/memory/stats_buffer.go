@@ -29,6 +29,23 @@ func (self *StatsBuffer) Add(item *info.ContainerStats) {
 	self.buffer[self.index] = *item
 }
 
+// Returns the oldest buffer element.
+func (self *StatsBuffer) Next(cur_idx int) (info.ContainerStats, int) {
+	if cur_idx >= self.size - 1 {
+		return self.buffer[0], 0
+	}
+	return self.buffer[cur_idx + 1], cur_idx + 1
+}
+
+// Returns the oldest buffer element.
+func (self *StatsBuffer) Start(n int) (info.ContainerStats, int) {
+	start := self.index - (n - 1)
+	if start < 0 {
+		start += len(self.buffer)
+	}
+	return self.buffer[start], start
+}
+
 // Returns the first N elements in the buffer. If N > size of buffer, size of buffer elements are returned.
 func (self *StatsBuffer) FirstN(n int) []info.ContainerStats {
 	// Cap n at the number of elements we have.

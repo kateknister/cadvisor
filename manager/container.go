@@ -65,6 +65,7 @@ func (c *containerData) Stop() error {
 func (c *containerData) GetInfo() (*containerInfo, error) {
 	// TODO(vmarmol): Consider caching this.
 	// Get spec and subcontainers.
+
 	err := c.updateSpec()
 	if err != nil {
 		return nil, err
@@ -78,6 +79,8 @@ func (c *containerData) GetInfo() (*containerInfo, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	return &c.info, nil
+
+
 }
 
 func newContainerData(containerName string, driver storage.StorageDriver, handler container.ContainerHandler, logUsage bool) (*containerData, error) {

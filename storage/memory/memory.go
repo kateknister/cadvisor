@@ -15,7 +15,6 @@
 package memory
 
 import (
-	"container/list"
 	"fmt"
 	"sync"
 
@@ -27,7 +26,7 @@ import (
 // containerStorage is used to store per-container information
 type containerStorage struct {
 	ref         info.ContainerReference
-	recentStats *list.List
+	recentStats *StatsBuffer
 	maxNumStats int
 	lock        sync.RWMutex
 }
@@ -37,18 +36,15 @@ func (self *containerStorage) AddStats(stats *info.ContainerStats) error {
 	defer self.lock.Unlock()
 
 	// Add the stat to storage.
-	if self.recentStats.Len() >= self.maxNumStats {
-		self.recentStats.Remove(self.recentStats.Back())
-	}
-	self.recentStats.PushFront(stats)
+	self.recentStats.Add(stats)
 	return nil
 }
 
 func (self *containerStorage) RecentStats(numStats int) ([]*info.ContainerStats, error) {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
-	if self.recentStats.Len() < numStats || numStats < 0 {
-		numStats = self.recentStats.Len()
+	if self.recentStats.Size() < numStats || numStats < 0 {
+		numStats = self.recentStats.Size()
 	}
 
 	// Stats in the recentStats list are stored in reverse chronological
@@ -61,14 +57,14 @@ func (self *containerStorage) RecentStats(numStats int) ([]*info.ContainerStats,
 	// StorageDriver interface, so it is not necessary for other storage
 	// drivers to return the slice in the same order.
 	ret := make([]*info.ContainerStats, numStats)
-	e := self.recentStats.Front()
+	e, cur_idx := self.recentStats.Start(numStats)
 	for i := numStats - 1; i >= 0; i-- {
-		data, ok := e.Value.(*info.ContainerStats)
-		if !ok {
-			return nil, fmt.Errorf("The %vth element is not a ContainerStats", i)
-		}
-		ret[i] = data
-		e = e.Next()
+		data := e
+		// if !ok {
+		// 	return nil, fmt.Errorf("The %vth element is not a ContainerStats", i)
+		// }
+		ret[i] = &data
+		e, cur_idx = self.recentStats.Next(cur_idx)
 	}
 	return ret, nil
 }
@@ -76,7 +72,7 @@ func (self *containerStorage) RecentStats(numStats int) ([]*info.ContainerStats,
 func newContainerStore(ref info.ContainerReference, maxNumStats int) *containerStorage {
 	return &containerStorage{
 		ref:         ref,
-		recentStats: list.New(),
+		recentStats: NewStatsBuffer(maxNumStats),
 		maxNumStats: maxNumStats,
 	}
 }
